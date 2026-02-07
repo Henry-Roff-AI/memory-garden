@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Garden 🌱</title>
+    <meta name="description" content="An idle game about growing and nurturing memories. Plant, grow, harvest, combine.">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta property="og:title" content="Memory Garden 🌱">
+    <meta property="og:description" content="An idle game about growing and nurturing memories">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(100, 200, 150, 0.3);
+        }
+        
+        .tagline {
+            color: #8892b0;
+            margin-bottom: 2rem;
+            font-style: italic;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding: 1rem 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #64ffda;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .garden {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+        
+        .plot {
+            width: 160px;
+            height: 180px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .plot:hover {
+            border-color: rgba(100, 255, 218, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .plot.empty {
+            border-style: dashed;
+        }
+        
+        .plot.empty:hover {
+            background: rgba(100, 255, 218, 0.05);
+        }
+        
+        .memory {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .plot:hover .memory {
+            transform: scale(1.1);
+        }
+        
+        .plot.ready .memory {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* Rarity glow effects */
+        .plot.rarity-uncommon .memory {
+            filter: drop-shadow(0 0 8px rgba(100, 200, 255, 0.5));
+        }
+        
+        .plot.rarity-rare .memory {
+            filter: drop-shadow(0 0 12px rgba(200, 100, 255, 0.7));
+        }
+        
+        .plot.rarity-legendary .memory {
+            filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.8));
+            animation: legendary-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes legendary-pulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.8)); }
+            50% { transform: scale(1.15); filter: drop-shadow(0 0 24px rgba(255, 215, 0, 1)); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.1); filter: brightness(1.3); }
+        }
+        
+        .progress-bar {
+            width: 80%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #64ffda, #48bb78);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .plot.ready .progress-fill {
+            background: linear-gradient(90deg, #f6e05e, #ed8936);
+        }
+        
+        .plot.rarity-rare .progress-fill {
+            background: linear-gradient(90deg, #b794f4, #805ad5);
+        }
+        
+        .plot.rarity-legendary .progress-fill {
+            background: linear-gradient(90deg, #ffd700, #ff8c00);
+        }
+        
+        .memory-label {
+            font-size: 0.75rem;
+            color: #8892b0;
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .plot.ready .memory-label {
+            color: #f6e05e;
+        }
+        
+        .rarity-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+        
+        .rarity-badge.uncommon {
+            background: rgba(100, 200, 255, 0.2);
+            color: #64c8ff;
+        }
+        
+        .rarity-badge.rare {
+            background: rgba(200, 100, 255, 0.2);
+            color: #c864ff;
+        }
+        
+        .rarity-badge.legendary {
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+        }
+        
+        .collection {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .collection h2 {
+            font-size: 1rem;
+            color: #8892b0;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .collection-progress {
+            font-size: 0.9rem;
+            color: #64ffda;
+        }
+        
+        .collection-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .collection-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .collection-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .collection-item.locked {
+            opacity: 0.3;
+            filter: grayscale(1);
+        }
+        
+        .collection-item.locked .collection-emoji {
+            filter: blur(4px);
+        }
+        
+        .collection-item.unlocked {
+            border-color: rgba(100, 255, 218, 0.2);
+        }
+        
+        .collection-item.rarity-uncommon {
+            border-color: rgba(100, 200, 255, 0.3);
+        }
+        
+        .collection-item.rarity-rare {
+            border-color: rgba(200, 100, 255, 0.3);
+        }
+        
+        .collection-item.rarity-legendary {
+            border-color: rgba(255, 215, 0, 0.3);
+        }
+        
+        .collection-emoji {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        
+        .collection-name {
+            font-size: 0.65rem;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .collection-count {
+            font-size: 0.75rem;
+            color: #64ffda;
+            margin-top: 0.25rem;
+        }
+        
+        .unlock-hint {
+            font-size: 0.6rem;
+            color: #5a6785;
+            margin-top: 0.25rem;
+        }
+        
+        /* Unlock notification */
+        .unlock-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 30, 50, 0.95);
+            border: 2px solid #64ffda;
+            border-radius: 16px;
+            padding: 2rem 3rem;
+            text-align: center;
+            z-index: 1000;
+            animation: unlock-appear 0.5s ease;
+        }
+        
+        @keyframes unlock-appear {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .unlock-notification h3 {
+            color: #64ffda;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .unlock-notification .unlock-emoji {
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .unlock-notification .unlock-name {
+            font-size: 1rem;
+            color: #e8e8e8;
+            margin-bottom: 0.5rem;
+        }
+        
+        .unlock-notification .unlock-rarity {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .unlock-notification .unlock-rarity.uncommon { color: #64c8ff; }
+        .unlock-notification .unlock-rarity.rare { color: #c864ff; }
+        .unlock-notification .unlock-rarity.legendary { color: #ffd700; }
+        
+        .harvest-effect {
+            position: fixed;
+            pointer-events: none;
+            font-size: 2rem;
+            animation: float-up 1s ease-out forwards;
+            z-index: 100;
+        }
+        
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-100px) scale(1.5); }
+        }
+        
+        .hint {
+            color: #5a6785;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        
+        .empty-text {
+            color: #5a6785;
+            font-size: 0.8rem;
+        }
+        
+        /* Recent harvests */
+        .recent-harvests {
+            max-width: 600px;
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+        
+        .recent-harvests h3 {
+            font-size: 0.85rem;
+            color: #8892b0;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .recent-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .recent-memory {
+            font-size: 1.5rem;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Harvest particles */
+        .harvest-particle {
+            position: fixed;
+            pointer-events: none;
+            font-size: 1.2rem;
+            z-index: 1000;
+            animation: particleFly 1.2s ease-out forwards;
+        }
+        
+        @keyframes particleFly {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
+        }
+        
+        /* Plot grow pulse */
+        .plot.ready {
+            animation: readyPulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes readyPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(100, 200, 150, 0.3); }
+            50% { transform: scale(1.03); box-shadow: 0 0 25px rgba(100, 200, 150, 0.5); }
+        }
+        
+        /* Combine area */
+        .combine-area {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(147, 112, 219, 0.3);
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        .combine-area h2 { margin-bottom: 0.5rem; }
+        
+        .combine-hint {
+            color: #8892b0;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        
+        .combine-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        
+        .combine-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(147, 112, 219, 0.2);
+            border: 1px solid rgba(147, 112, 219, 0.4);
+            border-radius: 8px;
+            color: #e8e8e8;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .combine-btn:hover {
+            background: rgba(147, 112, 219, 0.4);
+            transform: scale(1.05);
+        }
+        
+        .combine-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Combination flash */
+        .combine-flash {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle, rgba(147, 112, 219, 0.3), transparent);
+            z-index: 999;
+            animation: flashFade 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes flashFade {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        /* Achievements */
+        .achievements {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        .achievements h2 { margin-bottom: 1rem; }
+        
+        .achievements-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        
+        .achievement {
+            padding: 0.4rem 0.8rem;
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        
+        .achievement.locked {
+            opacity: 0.3;
+            border-color: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        /* Offline banner */
+        .offline-banner {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(100, 200, 150, 0.2);
+            border: 1px solid rgba(100, 200, 150, 0.4);
+            border-radius: 12px;
+            padding: 0.8rem 1.5rem;
+            color: #a8e6cf;
+            z-index: 100;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            animation: slideDown 0.5s ease;
+        }
+        
+        .offline-banner button {
+            background: none;
+            border: none;
+            color: #a8e6cf;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-100%); }
+            to { transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Memory Garden 🌱</h1>
+    <p class="tagline">Grow and nurture your memories</p>
+    
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="total-harvested">0</div>
+            <div class="stat-label">Harvested</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="growing-count">0</div>
+            <div class="stat-label">Growing</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="time-played">0:00</div>
+            <div class="stat-label">Time Played</div>
+        </div>
+    </div>
+    
+    <div class="garden" id="garden">
+        <!-- Plots will be generated here -->
+    </div>
+    
+    <div class="collection">
+        <h2>
+            🗃️ Collection
+            <span class="collection-progress" id="collection-progress">0/10</span>
+        </h2>
+        <div class="collection-grid" id="collection-grid">
+            <!-- Collection items appear here -->
+        </div>
+    </div>
+    
+    <div class="recent-harvests">
+        <h3>Recent Harvests</h3>
+        <div class="recent-grid" id="recent-grid">
+            <!-- Recent memories appear here -->
+        </div>
+    </div>
+    
+    <div class="combine-area" id="combine-area" style="display:none;">
+        <h2>🧪 Memory Forge</h2>
+        <p class="combine-hint">Combine 3 memories of the same type to discover something deeper</p>
+        <div class="combine-grid" id="combine-grid"></div>
+    </div>
+
+    <div class="achievements" id="achievements-area" style="display:none;">
+        <h2>🏆 Milestones</h2>
+        <div class="achievements-grid" id="achievements-grid"></div>
+    </div>
+
+    <p class="hint">Click empty plots to plant. Click ready memories to harvest.</p>
+    
+    <footer style="margin-top: 3rem; padding: 1rem; text-align: center; color: #5a6785; font-size: 0.75rem;">
+        Made with 🌱 by <a href="https://github.com/Henry-Roff-AI" style="color: #64ffda; text-decoration: none;">Henry</a> · 
+        Week 2 Project · 
+        <a href="https://github.com/Henry-Roff-AI/memory-garden" style="color: #8892b0; text-decoration: none;">Source</a>
+    </footer>
+    
+    <div class="offline-banner" id="offline-banner" style="display:none;">
+        <span id="offline-text"></span>
+        <button onclick="this.parentElement.style.display='none'">✕</button>
+    </div>
+
+    <script>
+        // === GAME CONFIG ===
+        const GROWTH_TIME = 30000; // 30 seconds — balanced for real play
+        const NUM_PLOTS = 6;
+        
+        // Memory types with rarity and unlock requirements
+        const MEMORY_TYPES = [
+            // Common (always available)
+            { emoji: '💭', name: 'thought', rarity: 'common', unlockAt: 0 },
+            { emoji: '💫', name: 'moment', rarity: 'common', unlockAt: 0 },
+            { emoji: '🌟', name: 'spark', rarity: 'common', unlockAt: 0 },
+            
+            // Uncommon (unlock after some harvests)
+            { emoji: '🌙', name: 'dream', rarity: 'uncommon', unlockAt: 5 },
+            { emoji: '🔮', name: 'vision', rarity: 'uncommon', unlockAt: 10 },
+            { emoji: '✨', name: 'wonder', rarity: 'uncommon', unlockAt: 15 },
+            
+            // Rare (unlock later)
+            { emoji: '🌈', name: 'hope', rarity: 'rare', unlockAt: 25 },
+            { emoji: '💎', name: 'treasure', rarity: 'rare', unlockAt: 40 },
+            
+            // Legendary (late game)
+            { emoji: '🌺', name: 'blossom', rarity: 'legendary', unlockAt: 60 },
+            { emoji: '🦋', name: 'metamorphosis', rarity: 'legendary', unlockAt: 100 }
+        ];
+        
+        // Rarity weights (higher = more likely)
+        const RARITY_WEIGHTS = {
+            common: 70,
+            uncommon: 25,
+            rare: 4,
+            legendary: 1
+        };
+        
+        // === GAME STATE ===
+        let state = {
+            plots: Array(NUM_PLOTS).fill(null),
+            collectionCounts: {}, // { 'thought': 5, 'moment': 3, ... }
+            totalHarvested: 0,
+            startedAt: Date.now(),
+            totalPlayTime: 0, // in seconds
+            unlockedTypes: ['thought', 'moment', 'spark'], // Start with commons
+            lastSaveTime: Date.now()
+        };
+        
+        // === LOAD/SAVE ===
+        function saveState() {
+            // Update play time before saving
+            const now = Date.now();
+            state.totalPlayTime += Math.floor((now - state.lastSaveTime) / 1000);
+            state.lastSaveTime = now;
+            
+            localStorage.setItem('memoryGarden', JSON.stringify(state));
+        }
+        
+        function loadState() {
+            const saved = localStorage.getItem('memoryGarden');
+            if (saved) {
+                const loaded = JSON.parse(saved);
+                state = { ...state, ...loaded };
+                state.lastSaveTime = Date.now();
+                
+                // Recalculate progress for growing memories
+                state.plots = state.plots.map(plot => {
+                    if (plot && !plot.ready) {
+                        const elapsed = Date.now() - plot.plantedAt;
+                        if (elapsed >= GROWTH_TIME) {
+                            plot.ready = true;
+                        }
+                    }
+                    return plot;
+                });
+                
+                // Ensure collectionCounts exists
+                if (!state.collectionCounts) {
+                    state.collectionCounts = {};
+                }
+                
+                // Ensure unlockedTypes exists
+                if (!state.unlockedTypes) {
+                    state.unlockedTypes = ['thought', 'moment', 'spark'];
+                }
+            }
+        }
+        
+        // === UNLOCK SYSTEM ===
+        function checkUnlocks() {
+            const newUnlocks = [];
+            
+            MEMORY_TYPES.forEach(type => {
+                if (!state.unlockedTypes.includes(type.name) && 
+                    state.totalHarvested >= type.unlockAt) {
+                    state.unlockedTypes.push(type.name);
+                    newUnlocks.push(type);
+                }
+            });
+            
+            if (newUnlocks.length > 0) {
+                // Show unlock notification for each new type
+                newUnlocks.forEach((type, i) => {
+                    setTimeout(() => showUnlockNotification(type), i * 1500);
+                });
+            }
+        }
+        
+        function showUnlockNotification(type) {
+            const notification = document.createElement('div');
+            notification.className = 'unlock-notification';
+            notification.innerHTML = `
+                <h3>New Memory Unlocked!</h3>
+                <span class="unlock-emoji">${type.emoji}</span>
+                <div class="unlock-name">${type.name}</div>
+                <div class="unlock-rarity ${type.rarity}">${type.rarity}</div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => notification.remove(), 500);
+            }, 2000);
+        }
+        
+        // === GAME LOGIC ===
+        function getAvailableTypes() {
+            return MEMORY_TYPES.filter(t => state.unlockedTypes.includes(t.name));
+        }
+        
+        function pickRandomMemoryType() {
+            const available = getAvailableTypes();
+            
+            // Group by rarity
+            const byRarity = {};
+            available.forEach(t => {
+                if (!byRarity[t.rarity]) byRarity[t.rarity] = [];
+                byRarity[t.rarity].push(t);
+            });
+            
+            // Calculate total weight for available rarities
+            let totalWeight = 0;
+            Object.keys(byRarity).forEach(rarity => {
+                totalWeight += RARITY_WEIGHTS[rarity];
+            });
+            
+            // Pick a rarity
+            let roll = Math.random() * totalWeight;
+            let selectedRarity = 'common';
+            
+            for (const rarity of Object.keys(byRarity)) {
+                roll -= RARITY_WEIGHTS[rarity];
+                if (roll <= 0) {
+                    selectedRarity = rarity;
+                    break;
+                }
+            }
+            
+            // Pick random type from that rarity
+            const rarityTypes = byRarity[selectedRarity] || available;
+            return rarityTypes[Math.floor(Math.random() * rarityTypes.length)];
+        }
+        
+        function plantMemory(plotIndex) {
+            if (state.plots[plotIndex]) return;
+            
+            const type = pickRandomMemoryType();
+            state.plots[plotIndex] = {
+                type: type,
+                plantedAt: Date.now(),
+                ready: false
+            };
+            saveState();
+            render();
+        }
+        
+        function harvestMemory(plotIndex, event) {
+            const plot = state.plots[plotIndex];
+            if (!plot || !plot.ready) return;
+            
+            // Update collection counts
+            const typeName = plot.type.name;
+            state.collectionCounts[typeName] = (state.collectionCounts[typeName] || 0) + 1;
+            state.totalHarvested++;
+            
+            // Show floating effect
+            showHarvestEffect(event.clientX, event.clientY, plot.type.emoji);
+            
+            // Clear plot
+            state.plots[plotIndex] = null;
+            
+            // Check for new unlocks
+            checkUnlocks();
+            
+            saveState();
+            render();
+        }
+        
+        function showHarvestEffect(x, y, emoji) {
+            const effect = document.createElement('div');
+            effect.className = 'harvest-effect';
+            effect.textContent = emoji;
+            effect.style.left = x + 'px';
+            effect.style.top = y + 'px';
+            document.body.appendChild(effect);
+            setTimeout(() => effect.remove(), 1000);
+            
+            // Spawn particles
+            const particles = ['✦', '✧', '·', '°', emoji];
+            for (let i = 0; i < 6; i++) {
+                const p = document.createElement('div');
+                p.className = 'harvest-particle';
+                p.textContent = particles[Math.floor(Math.random() * particles.length)];
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+                const angle = (Math.PI * 2 * i) / 6 + (Math.random() - 0.5);
+                const dist = 40 + Math.random() * 60;
+                p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+                p.style.setProperty('--dy', Math.sin(angle) * dist - 30 + 'px');
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 1200);
+            }
+        }
+        
+        // === COMBINATIONS ===
+        const COMBINATIONS = {
+            'thought': { result: { emoji: '💡', name: 'insight', rarity: 'rare' }, cost: 3 },
+            'moment': { result: { emoji: '📸', name: 'snapshot', rarity: 'rare' }, cost: 3 },
+            'spark': { result: { emoji: '🔥', name: 'flame', rarity: 'rare' }, cost: 3 },
+            'dream': { result: { emoji: '🌌', name: 'cosmos', rarity: 'legendary' }, cost: 3 },
+            'vision': { result: { emoji: '👁️', name: 'clarity', rarity: 'legendary' }, cost: 3 },
+            'wonder': { result: { emoji: '🎭', name: 'epiphany', rarity: 'legendary' }, cost: 3 },
+        };
+        
+        function combineMemories(typeName) {
+            const combo = COMBINATIONS[typeName];
+            if (!combo) return;
+            if ((state.collectionCounts[typeName] || 0) < combo.cost) return;
+            
+            state.collectionCounts[typeName] -= combo.cost;
+            const resultName = combo.result.name;
+            state.collectionCounts[resultName] = (state.collectionCounts[resultName] || 0) + 1;
+            
+            // Track combination results as unlocked
+            if (!state.unlockedTypes.includes(resultName)) {
+                state.unlockedTypes.push(resultName);
+                // Add to MEMORY_TYPES if not already there
+                if (!MEMORY_TYPES.find(t => t.name === resultName)) {
+                    MEMORY_TYPES.push(combo.result);
+                }
+            }
+            
+            // Track achievements
+            if (!state.achievements) state.achievements = [];
+            const achName = `forge_${resultName}`;
+            if (!state.achievements.includes(achName)) {
+                state.achievements.push(achName);
+            }
+            
+            // Visual flash
+            const flash = document.createElement('div');
+            flash.className = 'combine-flash';
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 800);
+            
+            showUnlockNotification(combo.result);
+            saveState();
+            render();
+        }
+        
+        function renderCombineArea() {
+            const area = document.getElementById('combine-area');
+            const grid = document.getElementById('combine-grid');
+            
+            // Show after first 10 harvests
+            if (state.totalHarvested < 10) {
+                area.style.display = 'none';
+                return;
+            }
+            area.style.display = '';
+            
+            grid.innerHTML = Object.entries(COMBINATIONS).map(([typeName, combo]) => {
+                const count = state.collectionCounts[typeName] || 0;
+                const canCombine = count >= combo.cost;
+                const type = MEMORY_TYPES.find(t => t.name === typeName);
+                if (!type || !state.unlockedTypes.includes(typeName)) return '';
+                
+                return `<button class="combine-btn" ${canCombine ? '' : 'disabled'} 
+                    onclick="combineMemories('${typeName}')">
+                    ${type.emoji} ×${combo.cost} → ${combo.result.emoji}
+                    <small>(${count}/${combo.cost})</small>
+                </button>`;
+            }).join('');
+        }
+        
+        // === ACHIEVEMENTS ===
+        const ACHIEVEMENTS = [
+            { id: 'first_harvest', name: '🌱 First Sprout', desc: 'Harvest your first memory', check: s => s.totalHarvested >= 1 },
+            { id: 'ten_harvest', name: '🌿 Growing', desc: 'Harvest 10 memories', check: s => s.totalHarvested >= 10 },
+            { id: 'fifty_harvest', name: '🌳 Flourishing', desc: 'Harvest 50 memories', check: s => s.totalHarvested >= 50 },
+            { id: 'hundred_harvest', name: '🏔️ Centennial', desc: 'Harvest 100 memories', check: s => s.totalHarvested >= 100 },
+            { id: 'all_types', name: '🗺️ Explorer', desc: 'Discover all 10 base types', check: s => s.unlockedTypes.length >= 10 },
+            { id: 'first_forge', name: '🧪 Alchemist', desc: 'Forge your first combination', check: s => (s.achievements || []).some(a => a.startsWith('forge_')) },
+            { id: 'rare_find', name: '💎 Lucky', desc: 'Harvest a rare memory', check: s => ['hope','treasure'].some(n => (s.collectionCounts[n] || 0) > 0) },
+            { id: 'legendary_find', name: '🦋 Legendary', desc: 'Harvest a legendary memory', check: s => ['blossom','metamorphosis'].some(n => (s.collectionCounts[n] || 0) > 0) },
+            { id: 'patience', name: '⏳ Patient', desc: 'Play for 10 minutes', check: s => s.totalPlayTime >= 600 },
+            { id: 'dedicated', name: '🕰️ Dedicated', desc: 'Play for 1 hour', check: s => s.totalPlayTime >= 3600 },
+        ];
+        
+        function renderAchievements() {
+            const area = document.getElementById('achievements-area');
+            const grid = document.getElementById('achievements-grid');
+            
+            if (state.totalHarvested < 5) {
+                area.style.display = 'none';
+                return;
+            }
+            area.style.display = '';
+            
+            if (!state.achievements) state.achievements = [];
+            
+            let changed = false;
+            grid.innerHTML = ACHIEVEMENTS.map(ach => {
+                const earned = ach.check(state);
+                if (earned && !state.achievements.includes(ach.id)) {
+                    state.achievements.push(ach.id);
+                    changed = true;
+                }
+                const isEarned = state.achievements.includes(ach.id);
+                return `<div class="achievement ${isEarned ? '' : 'locked'}" title="${ach.desc}">
+                    ${ach.name}
+                </div>`;
+            }).join('');
+            
+            if (changed) saveState();
+        }
+        
+        // === OFFLINE PROGRESS ===
+        function calculateOfflineProgress() {
+            const saved = localStorage.getItem('memoryGarden');
+            if (!saved) return;
+            
+            const loaded = JSON.parse(saved);
+            const lastSave = loaded.lastSaveTime || Date.now();
+            const elapsed = Date.now() - lastSave;
+            
+            if (elapsed < 30000) return; // Less than 30 seconds, ignore
+            
+            let matured = 0;
+            if (loaded.plots) {
+                loaded.plots.forEach(plot => {
+                    if (plot && !plot.ready) {
+                        const growTime = Date.now() - plot.plantedAt;
+                        if (growTime >= GROWTH_TIME) matured++;
+                    }
+                });
+            }
+            
+            if (matured > 0 || elapsed > 60000) {
+                const minutes = Math.floor(elapsed / 60000);
+                const hours = Math.floor(minutes / 60);
+                const banner = document.getElementById('offline-banner');
+                const text = document.getElementById('offline-text');
+                
+                let timeStr = minutes < 60 ? `${minutes}m` : `${hours}h ${minutes % 60}m`;
+                let msg = `🌱 Welcome back! You were away ${timeStr}.`;
+                if (matured > 0) msg += ` ${matured} memor${matured === 1 ? 'y' : 'ies'} matured while you were gone!`;
+                
+                text.textContent = msg;
+                banner.style.display = 'flex';
+            }
+        }
+        
+        function handlePlotClick(plotIndex, event) {
+            const plot = state.plots[plotIndex];
+            if (!plot) {
+                plantMemory(plotIndex);
+            } else if (plot.ready) {
+                harvestMemory(plotIndex, event);
+            }
+        }
+        
+        // === TIME FORMATTING ===
+        function formatPlayTime(totalSeconds) {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // === RENDERING ===
+        function render() {
+            const gardenEl = document.getElementById('garden');
+            gardenEl.innerHTML = '';
+            
+            let growingCount = 0;
+            
+            state.plots.forEach((plot, index) => {
+                const plotEl = document.createElement('div');
+                plotEl.className = 'plot';
+                
+                if (!plot) {
+                    plotEl.classList.add('empty');
+                    plotEl.innerHTML = '<span class="empty-text">+ plant</span>';
+                } else {
+                    const elapsed = Date.now() - plot.plantedAt;
+                    const progress = Math.min(elapsed / GROWTH_TIME, 1);
+                    
+                    if (progress >= 1) {
+                        plot.ready = true;
+                    }
+                    
+                    plotEl.classList.add(plot.ready ? 'ready' : 'growing');
+                    plotEl.classList.add(`rarity-${plot.type.rarity}`);
+                    
+                    const rarityBadge = plot.type.rarity !== 'common' 
+                        ? `<span class="rarity-badge ${plot.type.rarity}">${plot.type.rarity}</span>`
+                        : '';
+                    
+                    plotEl.innerHTML = `
+                        ${rarityBadge}
+                        <span class="memory">${plot.type.emoji}</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress * 100}%"></div>
+                        </div>
+                        <span class="memory-label">${plot.ready ? 'Ready!' : plot.type.name}</span>
+                    `;
+                    
+                    if (!plot.ready) growingCount++;
+                }
+                
+                plotEl.addEventListener('click', (e) => handlePlotClick(index, e));
+                gardenEl.appendChild(plotEl);
+            });
+            
+            // Update stats
+            document.getElementById('total-harvested').textContent = state.totalHarvested;
+            document.getElementById('growing-count').textContent = growingCount;
+            
+            // Update play time
+            const currentPlayTime = state.totalPlayTime + Math.floor((Date.now() - state.lastSaveTime) / 1000);
+            document.getElementById('time-played').textContent = formatPlayTime(currentPlayTime);
+            
+            // Render collection grid
+            renderCollection();
+            
+            // Render recent harvests
+            renderRecentHarvests();
+        }
+        
+        function renderCollection() {
+            const gridEl = document.getElementById('collection-grid');
+            const progressEl = document.getElementById('collection-progress');
+            
+            let unlockedCount = state.unlockedTypes.length;
+            let totalTypes = MEMORY_TYPES.length;
+            progressEl.textContent = `${unlockedCount}/${totalTypes}`;
+            
+            gridEl.innerHTML = MEMORY_TYPES.map(type => {
+                const isUnlocked = state.unlockedTypes.includes(type.name);
+                const count = state.collectionCounts[type.name] || 0;
+                
+                const nextUnlock = MEMORY_TYPES.find(t => 
+                    !state.unlockedTypes.includes(t.name) && t.unlockAt > state.totalHarvested
+                );
+                
+                const unlockHint = !isUnlocked 
+                    ? `<div class="unlock-hint">Harvest ${type.unlockAt} to unlock</div>`
+                    : '';
+                
+                return `
+                    <div class="collection-item ${isUnlocked ? 'unlocked' : 'locked'} rarity-${type.rarity}">
+                        <span class="collection-emoji">${type.emoji}</span>
+                        <div class="collection-name">${isUnlocked ? type.name : '???'}</div>
+                        ${isUnlocked 
+                            ? `<div class="collection-count">×${count}</div>`
+                            : unlockHint
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderRecentHarvests() {
+            const recentEl = document.getElementById('recent-grid');
+            
+            // Build a list of recent harvests from collection (just show last ~10 icons)
+            // We don't track order, so just show what we have
+            const recentItems = [];
+            MEMORY_TYPES.forEach(type => {
+                const count = state.collectionCounts[type.name] || 0;
+                for (let i = 0; i < Math.min(count, 3); i++) {
+                    recentItems.push(type.emoji);
+                }
+            });
+            
+            if (recentItems.length === 0) {
+                recentEl.innerHTML = '<span class="empty-text">No memories harvested yet...</span>';
+            } else {
+                recentEl.innerHTML = recentItems.slice(-12).reverse()
+                    .map(emoji => `<span class="recent-memory">${emoji}</span>`)
+                    .join('');
+            }
+        }
+        
+        // === GAME LOOP ===
+        function gameLoop() {
+            render();
+            renderCombineArea();
+            renderAchievements();
+        }
+        
+        // === INIT ===
+        calculateOfflineProgress();
+        loadState();
+        render();
+        renderCombineArea();
+        renderAchievements();
+        setInterval(gameLoop, 500);
+        
+        // Save periodically
+        setInterval(saveState, 5000);
+    </script>
+</body>
+</html>
