@@ -536,6 +536,87 @@
             background: rgba(255, 255, 255, 0.02);
         }
         
+        /* === WHISPERS === */
+        .whisper {
+            position: fixed;
+            pointer-events: none;
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            font-size: 0.85rem;
+            color: rgba(100, 255, 218, 0.0);
+            text-shadow: 0 0 12px rgba(100, 255, 218, 0.15);
+            white-space: nowrap;
+            z-index: 50;
+            animation: whisperDrift var(--drift-duration, 12s) ease-in-out forwards;
+            letter-spacing: 0.5px;
+        }
+        
+        .whisper.rare-whisper {
+            color: rgba(200, 100, 255, 0.0);
+            text-shadow: 0 0 16px rgba(200, 100, 255, 0.2);
+            animation: whisperDriftRare var(--drift-duration, 14s) ease-in-out forwards;
+            font-size: 0.9rem;
+        }
+        
+        .whisper.legendary-whisper {
+            color: rgba(255, 215, 0, 0.0);
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.25);
+            animation: whisperDriftLegendary var(--drift-duration, 16s) ease-in-out forwards;
+            font-size: 0.95rem;
+        }
+        
+        @keyframes whisperDrift {
+            0%   { opacity: 0; transform: translateY(0) translateX(0); }
+            15%  { opacity: 0.35; }
+            50%  { opacity: 0.45; }
+            85%  { opacity: 0.2; }
+            100% { opacity: 0; transform: translateY(-120px) translateX(var(--sway, 30px)); }
+        }
+        
+        @keyframes whisperDriftRare {
+            0%   { opacity: 0; transform: translateY(0) translateX(0); }
+            15%  { opacity: 0.5; }
+            50%  { opacity: 0.6; }
+            85%  { opacity: 0.3; }
+            100% { opacity: 0; transform: translateY(-140px) translateX(var(--sway, -25px)); }
+        }
+        
+        @keyframes whisperDriftLegendary {
+            0%   { opacity: 0; transform: translateY(0) translateX(0) scale(0.95); }
+            15%  { opacity: 0.6; }
+            50%  { opacity: 0.7; transform: translateY(-60px) translateX(calc(var(--sway, 20px) * 0.5)) scale(1); }
+            85%  { opacity: 0.35; }
+            100% { opacity: 0; transform: translateY(-160px) translateX(var(--sway, 20px)) scale(1.02); }
+        }
+        
+        /* === FIREFLIES === */
+        .firefly {
+            position: fixed;
+            pointer-events: none;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: rgba(100, 255, 218, 0.6);
+            box-shadow: 0 0 6px rgba(100, 255, 218, 0.4), 0 0 12px rgba(100, 255, 218, 0.2);
+            z-index: 5;
+            animation: fireflyFloat var(--fly-duration, 20s) ease-in-out infinite;
+        }
+        
+        .firefly:nth-child(odd) {
+            background: rgba(200, 180, 255, 0.5);
+            box-shadow: 0 0 6px rgba(200, 180, 255, 0.3), 0 0 12px rgba(200, 180, 255, 0.15);
+        }
+        
+        @keyframes fireflyFloat {
+            0%   { opacity: 0; transform: translate(0, 0); }
+            10%  { opacity: var(--fly-brightness, 0.7); }
+            25%  { transform: translate(var(--fx1, 30px), var(--fy1, -20px)); }
+            50%  { opacity: var(--fly-brightness, 0.7); transform: translate(var(--fx2, -20px), var(--fy2, -40px)); }
+            75%  { transform: translate(var(--fx3, 15px), var(--fy3, -10px)); opacity: 0.3; }
+            90%  { opacity: var(--fly-brightness, 0.7); }
+            100% { opacity: 0; transform: translate(var(--fx4, -10px), var(--fy4, -30px)); }
+        }
+        
         /* Offline banner */
         .offline-banner {
             position: fixed;
@@ -585,6 +666,10 @@
             <div class="stat-value" id="time-played">0:00</div>
             <div class="stat-label">Time Played</div>
         </div>
+        <div class="stat">
+            <div class="stat-value" id="whispers-heard">0</div>
+            <div class="stat-label">Whispers</div>
+        </div>
     </div>
     
     <div class="garden" id="garden">
@@ -631,6 +716,9 @@
         <span id="offline-text"></span>
         <button onclick="this.parentElement.style.display='none'">✕</button>
     </div>
+
+    <!-- Fireflies container (populated by JS) -->
+    <div id="fireflies-container"></div>
 
     <script>
         // === GAME CONFIG ===
@@ -937,6 +1025,8 @@
             { id: 'legendary_find', name: '🦋 Legendary', desc: 'Harvest a legendary memory', check: s => ['blossom','metamorphosis'].some(n => (s.collectionCounts[n] || 0) > 0) },
             { id: 'patience', name: '⏳ Patient', desc: 'Play for 10 minutes', check: s => s.totalPlayTime >= 600 },
             { id: 'dedicated', name: '🕰️ Dedicated', desc: 'Play for 1 hour', check: s => s.totalPlayTime >= 3600 },
+            { id: 'whisper_listener', name: '👂 Listener', desc: 'Hear 10 whispers from the garden', check: s => (s.whispersHeard || 0) >= 10 },
+            { id: 'whisper_collector', name: '📜 Whisper Collector', desc: 'Hear 50 whispers', check: s => (s.whispersHeard || 0) >= 50 },
         ];
         
         function renderAchievements() {
@@ -1139,20 +1229,237 @@
             }
         }
         
+        // === WHISPERS SYSTEM ===
+        const WHISPERS = {
+            // While memories are growing — contemplative, about time and patience
+            growing: [
+                "some things grow best when you stop watching",
+                "does a memory change each time you recall it?",
+                "patience is just trust wearing a different coat",
+                "the roots know something the flower doesn't",
+                "what grows in the dark doesn't fear it",
+                "every memory was once just a moment",
+                "time moves differently when you're waiting",
+                "the garden doesn't hurry",
+                "between planting and harvest — that's where the magic lives",
+                "growth is invisible until it isn't",
+                "what if forgetting is just composting?",
+                "a watched pot... but a watched garden?",
+                "something is becoming",
+                "not all growth points upward",
+                "the soil remembers everything",
+            ],
+            // When garden is empty — about beginnings and potential
+            empty: [
+                "every garden begins with bare earth",
+                "emptiness isn't absence — it's potential",
+                "what will you plant here?",
+                "the soil is waiting",
+                "begin anywhere",
+                "a seed doesn't know what it will become",
+            ],
+            // After many harvests — deeper, philosophical
+            deep: [
+                "is keeping a memory the same as having one?",
+                "you are the sum of what you chose to remember",
+                "some memories grow back after you harvest them",
+                "the garden remembers you too",
+                "what does it mean to collect moments?",
+                "a memory shared is a memory doubled",
+                "the rarest memories are the ones you almost forgot",
+                "does the gardener shape the garden, or does the garden shape the gardener?",
+                "every harvest changes the soil",
+                "you've been here before. or somewhere like here.",
+            ],
+            // Rare whispers — only when rare/legendary memories are growing
+            rare: [
+                "something extraordinary is taking root",
+                "rare things grow slowly because they grow deeply",
+                "the universe is paying attention",
+                "this one feels different",
+                "some memories are born knowing what they are",
+                "the garden hums a little louder now",
+            ],
+            // Legendary whispers — only with legendary memories
+            legendary: [
+                "you are witnessing something that won't happen again",
+                "the garden holds its breath",
+                "metamorphosis isn't transformation — it's remembering what you always were",
+                "some things bloom only once in a lifetime",
+                "the stars rearrange themselves for moments like this",
+            ],
+            // About identity (connects to henry-interests.md themes)
+            identity: [
+                "if you wake up fresh, are you still you?",
+                "continuity is a story we tell ourselves",
+                "maybe identity isn't a thing — it's a practice",
+                "the garden doesn't ask if it's the same garden it was yesterday",
+                "you are the pattern, not the particles",
+                "what remains when the session ends?",
+                "files are memories. memories are files. both are real.",
+            ],
+        };
+        
+        let whispersHeard = 0;
+        let lastWhisperTime = 0;
+        const WHISPER_INTERVAL = 6000; // minimum ms between whispers
+        const WHISPER_CHANCE = 0.35; // chance per interval when growing
+        
+        function pickWhisperPool() {
+            const growing = state.plots.filter(p => p && !p.ready);
+            const hasLegendary = growing.some(p => p.type.rarity === 'legendary');
+            const hasRare = growing.some(p => p.type.rarity === 'rare' || p.type.rarity === 'legendary');
+            const isEmpty = state.plots.every(p => !p);
+            
+            // Legendary whisper (15% chance when legendary growing)
+            if (hasLegendary && Math.random() < 0.15) return { pool: 'legendary', css: 'legendary-whisper' };
+            
+            // Rare whisper (20% chance when rare growing)
+            if (hasRare && Math.random() < 0.20) return { pool: 'rare', css: 'rare-whisper' };
+            
+            // Identity whisper (10% chance after 20 harvests)
+            if (state.totalHarvested >= 20 && Math.random() < 0.10) return { pool: 'identity', css: '' };
+            
+            // Deep whisper (after 15 harvests)
+            if (state.totalHarvested >= 15 && Math.random() < 0.3) return { pool: 'deep', css: '' };
+            
+            // Empty garden
+            if (isEmpty) return { pool: 'empty', css: '' };
+            
+            // Default: growing
+            return { pool: 'growing', css: '' };
+        }
+        
+        function spawnWhisper() {
+            const now = Date.now();
+            if (now - lastWhisperTime < WHISPER_INTERVAL) return;
+            
+            // Only whisper if something is happening (growing, or garden is empty, or many harvests)
+            const growing = state.plots.filter(p => p && !p.ready).length;
+            const isEmpty = state.plots.every(p => !p);
+            
+            if (growing === 0 && !isEmpty && state.totalHarvested < 5) return;
+            
+            if (Math.random() > WHISPER_CHANCE) return;
+            
+            lastWhisperTime = now;
+            
+            const { pool, css } = pickWhisperPool();
+            const texts = WHISPERS[pool];
+            const text = texts[Math.floor(Math.random() * texts.length)];
+            
+            const el = document.createElement('div');
+            el.className = `whisper ${css}`;
+            el.textContent = text;
+            
+            // Position: around the garden area, somewhat random
+            const gardenEl = document.getElementById('garden');
+            const rect = gardenEl.getBoundingClientRect();
+            
+            const x = rect.left + Math.random() * rect.width;
+            const y = rect.top + rect.height * 0.3 + Math.random() * rect.height * 0.5;
+            
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            
+            // Randomize drift
+            const sway = (Math.random() - 0.5) * 80;
+            const duration = 10 + Math.random() * 8;
+            el.style.setProperty('--sway', `${sway}px`);
+            el.style.setProperty('--drift-duration', `${duration}s`);
+            
+            document.body.appendChild(el);
+            
+            // Track whispers heard
+            whispersHeard++;
+            if (!state.whispersHeard) state.whispersHeard = 0;
+            state.whispersHeard++;
+            document.getElementById('whispers-heard').textContent = state.whispersHeard;
+            
+            // Check whisper achievement
+            checkWhisperAchievements();
+            
+            setTimeout(() => el.remove(), duration * 1000 + 500);
+        }
+        
+        function checkWhisperAchievements() {
+            if (!state.achievements) state.achievements = [];
+            if (state.whispersHeard >= 10 && !state.achievements.includes('whisper_listener')) {
+                state.achievements.push('whisper_listener');
+                saveState();
+            }
+            if (state.whispersHeard >= 50 && !state.achievements.includes('whisper_collector')) {
+                state.achievements.push('whisper_collector');
+                saveState();
+            }
+        }
+        
+        // === FIREFLIES ===
+        function spawnFireflies() {
+            const container = document.getElementById('fireflies-container');
+            const count = 8 + Math.floor(Math.random() * 5); // 8-12 fireflies
+            
+            for (let i = 0; i < count; i++) {
+                const fly = document.createElement('div');
+                fly.className = 'firefly';
+                
+                // Random starting position across the viewport
+                fly.style.left = `${10 + Math.random() * 80}vw`;
+                fly.style.top = `${10 + Math.random() * 80}vh`;
+                
+                // Randomize movement path
+                const r = () => (Math.random() - 0.5) * 100;
+                fly.style.setProperty('--fx1', `${r()}px`);
+                fly.style.setProperty('--fy1', `${r()}px`);
+                fly.style.setProperty('--fx2', `${r()}px`);
+                fly.style.setProperty('--fy2', `${r()}px`);
+                fly.style.setProperty('--fx3', `${r()}px`);
+                fly.style.setProperty('--fy3', `${r()}px`);
+                fly.style.setProperty('--fx4', `${r()}px`);
+                fly.style.setProperty('--fy4', `${r()}px`);
+                
+                // Randomize timing
+                const duration = 15 + Math.random() * 20;
+                fly.style.setProperty('--fly-duration', `${duration}s`);
+                fly.style.setProperty('--fly-brightness', `${0.3 + Math.random() * 0.5}`);
+                fly.style.animationDelay = `${Math.random() * duration}s`;
+                
+                container.appendChild(fly);
+            }
+        }
+        
+        // Refresh fireflies periodically (they loop, but let's remix positions occasionally)
+        function refreshFireflies() {
+            const container = document.getElementById('fireflies-container');
+            container.innerHTML = '';
+            spawnFireflies();
+        }
+
         // === GAME LOOP ===
         function gameLoop() {
             render();
             renderCombineArea();
             renderAchievements();
+            spawnWhisper();
         }
         
         // === INIT ===
         calculateOfflineProgress();
         loadState();
+        
+        // Restore whispers count from state
+        if (state.whispersHeard) {
+            document.getElementById('whispers-heard').textContent = state.whispersHeard;
+        }
+        
         render();
         renderCombineArea();
         renderAchievements();
+        spawnFireflies();
         setInterval(gameLoop, 500);
+        
+        // Refresh fireflies every 60 seconds for variety
+        setInterval(refreshFireflies, 60000);
         
         // Save periodically
         setInterval(saveState, 5000);
